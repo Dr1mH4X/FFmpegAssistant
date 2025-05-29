@@ -1,2 +1,5 @@
 # FFmpegAssistant
-使用图形化界面（GUI）简化FFmpeg的使用
+## Python Version
+Python 3.12.9
+## Environment require
+pip install -r requirements.txt
