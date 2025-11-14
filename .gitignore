@@ -1,0 +1,7 @@
+output/
+dist/
+.venv/
+build/
+ffmpeg.exe
+ffprobe.exe
+ffplay.exe

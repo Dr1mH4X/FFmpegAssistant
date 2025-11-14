@@ -1,10 +1,40 @@
+# -*- coding: utf-8 -*-
 import os
+import sys
+
+# ==================== 【PyInstaller 修复 stdin】 ====================
+if getattr(sys, "frozen", False) and sys.stdin is None:
+    sys.stdin = open(os.devnull, "r")
+    sys.stdout = open(os.devnull, "w")
+    sys.stderr = open(os.devnull, "w")
+
 import re
 import subprocess
-import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QGridLayout, QFileDialog
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
-from qfluentwidgets import setTheme, Theme, LineEdit, PushButton, ComboBox, CheckBox, ProgressBar, TextEdit, CardWidget, MessageBox
+
+from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal
+from PyQt5.QtWidgets import (
+    QApplication,
+    QFileDialog,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QVBoxLayout,
+    QWidget,
+)
+from qfluentwidgets import (
+    CardWidget,
+    CheckBox,
+    ComboBox,
+    LineEdit,
+    MessageBox,
+    ProgressBar,
+    PushButton,
+    TextEdit,
+    Theme,
+    setTheme,
+)
+
 
 # ConversionThread 类保持不变
 class ConversionThread(QThread):
@@ -26,22 +56,27 @@ class ConversionThread(QThread):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 universal_newlines=True,
-                creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
+                creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
             )
 
-            for line in iter(process.stdout.readline, ''):
+            for line in iter(process.stdout.readline, ""):
                 if process.poll() is not None:
                     break
                 line = line.strip()
-                if line.startswith('out_time_ms='):
+                if line.startswith("out_time_ms="):
                     try:
-                        time_ms = int(line.split('=')[1])
+                        time_ms = int(line.split("=")[1])
                         if self.duration > 0:
-                            progress = min((time_ms / 1000000) / self.duration * 100, 100)
+                            progress = min(
+                                (time_ms / 1000000) / self.duration * 100, 100
+                            )
                             self.progress_signal.emit(int(progress))
                     except:
                         pass
-                if any(keyword in line.lower() for keyword in ['error', 'warning', 'frame=', 'time=', 'bitrate=']):
+                if any(
+                    keyword in line.lower()
+                    for keyword in ["error", "warning", "frame=", "time=", "bitrate="]
+                ):
                     self.log_signal.emit(f"📋 {line}")
 
             return_code = process.wait()
@@ -51,6 +86,7 @@ class ConversionThread(QThread):
                 self.failed_signal.emit("转换过程中出现错误")
         except Exception as e:
             self.failed_signal.emit(str(e))
+
 
 class FFmpegFluentApp(QMainWindow):
     def __init__(self):
@@ -90,10 +126,14 @@ class FFmpegFluentApp(QMainWindow):
         self.current_dir = os.getcwd()
         self.output_dir = os.path.join(self.current_dir, "output")
         os.makedirs(self.output_dir, exist_ok=True)
-        
+
         self.ffmpeg_path = self.find_ffmpeg()
         if not self.ffmpeg_path:
-            MessageBox("错误", "未找到 FFmpeg。请确保 FFmpeg 已安装并在 PATH 中，或放置在应用目录下。", self).exec_()
+            MessageBox(
+                "错误",
+                "未找到 FFmpeg。请确保 FFmpeg 已安装并在 PATH 中，或放置在应用目录下。",
+                self,
+            ).exec_()
             sys.exit(1)
 
     def find_ffmpeg(self):
@@ -101,7 +141,9 @@ class FFmpegFluentApp(QMainWindow):
         if os.path.exists(local_ffmpeg):
             return local_ffmpeg
         try:
-            subprocess.run(["ffmpeg", "-version"], capture_output=True, text=True, timeout=5)
+            subprocess.run(
+                ["ffmpeg", "-version"], capture_output=True, text=True, timeout=5
+            )
             return "ffmpeg"
         except:
             return None
@@ -151,7 +193,9 @@ class FFmpegFluentApp(QMainWindow):
 
         input_layout.addWidget(file_container)
 
-        format_hint = QLabel("⚡ 支持所有主流格式：MP4, AVI, MKV, MOV, WMV, FLV, MP3, WAV, FLAC, M4A 等")
+        format_hint = QLabel(
+            "⚡ 支持所有主流格式：MP4, AVI, MKV, MOV, WMV, FLV, MP3, WAV, FLAC, M4A 等"
+        )
         format_hint.setStyleSheet("font-size: 11px; color: #616161;")
         input_layout.addWidget(format_hint)
 
@@ -178,10 +222,26 @@ class FFmpegFluentApp(QMainWindow):
 
         self.format_combo = ComboBox()
         formats = [
-            "mp4", "mkv", "avi", "mov", "webm", "gif",
-            "mp3", "wav", "flac", "m4a", "aac", "ogg",
-            "wmv", "flv", "mpeg", "ts", "vob",
-            "opus", "wma", "ac3"
+            "mp4",
+            "mkv",
+            "avi",
+            "mov",
+            "webm",
+            "gif",
+            "mp3",
+            "wav",
+            "flac",
+            "m4a",
+            "aac",
+            "ogg",
+            "wmv",
+            "flv",
+            "mpeg",
+            "ts",
+            "vob",
+            "opus",
+            "wma",
+            "ac3",
         ]
         self.format_combo.addItems(formats)
         self.format_combo.setCurrentText("mp4")
@@ -201,7 +261,9 @@ class FFmpegFluentApp(QMainWindow):
 
         self.gpu_checkbox = CheckBox("启用 GPU 硬件加速")
         self.gpu_checkbox.setChecked(True)
-        self.gpu_checkbox.stateChanged.connect(lambda state: setattr(self, "use_gpu", state == Qt.Checked))
+        self.gpu_checkbox.stateChanged.connect(
+            lambda state: setattr(self, "use_gpu", state == Qt.Checked)
+        )
         advanced_layout.addWidget(self.gpu_checkbox)
 
         gpu_desc = QLabel("🚀 使用 NVIDIA/AMD GPU 加速转换（如果支持）")
@@ -220,16 +282,22 @@ class FFmpegFluentApp(QMainWindow):
         self.frame_rate_combo = ComboBox()
         self.frame_rate_combo.addItems(["Same as source", "15", "25", "30", "60"])
         self.frame_rate_combo.setCurrentText("Same as source")
-        self.frame_rate_combo.currentTextChanged.connect(lambda text: setattr(self, "frame_rate", text))
+        self.frame_rate_combo.currentTextChanged.connect(
+            lambda text: setattr(self, "frame_rate", text)
+        )
         options_layout.addWidget(frame_rate_label, 0, 0)
         options_layout.addWidget(self.frame_rate_combo, 0, 1)
 
         # 分辨率选项
         resolution_label = QLabel("分辨率:")
         self.resolution_combo = ComboBox()
-        self.resolution_combo.addItems(["Same as source", "1920x1080", "1280x720", "854x480", "640x360"])
+        self.resolution_combo.addItems(
+            ["Same as source", "1920x1080", "1280x720", "854x480", "640x360"]
+        )
         self.resolution_combo.setCurrentText("Same as source")
-        self.resolution_combo.currentTextChanged.connect(lambda text: setattr(self, "resolution", text))
+        self.resolution_combo.currentTextChanged.connect(
+            lambda text: setattr(self, "resolution", text)
+        )
         options_layout.addWidget(resolution_label, 1, 0)
         options_layout.addWidget(self.resolution_combo, 1, 1)
 
@@ -288,7 +356,9 @@ class FFmpegFluentApp(QMainWindow):
         status_layout.addWidget(self.status_label)
         status_layout.addStretch()
         self.progress_label = QLabel("0%")
-        self.progress_label.setStyleSheet("font-size: 12px; font-weight: bold; color: #0078D4;")
+        self.progress_label.setStyleSheet(
+            "font-size: 12px; font-weight: bold; color: #0078D4;"
+        )
         status_layout.addWidget(self.progress_label)
         progress_layout.addWidget(status_container)
 
@@ -305,7 +375,9 @@ class FFmpegFluentApp(QMainWindow):
     def select_input_file(self):
         file_dialog = QFileDialog(self)
         file_dialog.setFileMode(QFileDialog.ExistingFile)
-        file_dialog.setNameFilter("Media files (*.mp4 *.avi *.mkv *.mov *.wmv *.flv *.mp3 *.wav *.flac *.m4a *.ogg *.opus *.wma *.ac3 *.mpeg *.ts *.vob)")
+        file_dialog.setNameFilter(
+            "Media files (*.mp4 *.avi *.mkv *.mov *.wmv *.flv *.mp3 *.wav *.flac *.m4a *.ogg *.opus *.wma *.ac3 *.mpeg *.ts *.vob)"
+        )
         if file_dialog.exec_():
             files = file_dialog.selectedFiles()
             if files:
@@ -315,8 +387,29 @@ class FFmpegFluentApp(QMainWindow):
 
     def on_format_changed(self, format_text):
         self.output_format = format_text
-        unsupported_gpu_formats = ["gif", "mp3", "wav", "flac", "m4a", "aac", "ogg", "opus", "wma", "ac3"]
-        audio_formats = ["mp3", "wav", "flac", "m4a", "aac", "ogg", "opus", "wma", "ac3"]
+        unsupported_gpu_formats = [
+            "gif",
+            "mp3",
+            "wav",
+            "flac",
+            "m4a",
+            "aac",
+            "ogg",
+            "opus",
+            "wma",
+            "ac3",
+        ]
+        audio_formats = [
+            "mp3",
+            "wav",
+            "flac",
+            "m4a",
+            "aac",
+            "ogg",
+            "opus",
+            "wma",
+            "ac3",
+        ]
 
         if format_text in unsupported_gpu_formats:
             self.gpu_checkbox.setEnabled(False)
@@ -346,7 +439,9 @@ class FFmpegFluentApp(QMainWindow):
             return
 
         base_name = os.path.splitext(os.path.basename(self.input_path))[0]
-        output_file = os.path.join(self.output_dir, f"{base_name}_converted.{self.output_format}")
+        output_file = os.path.join(
+            self.output_dir, f"{base_name}_converted.{self.output_format}"
+        )
 
         cmd = self.build_ffmpeg_command(self.input_path, output_file)
         duration = self.get_video_duration(self.input_path)
@@ -371,8 +466,30 @@ class FFmpegFluentApp(QMainWindow):
 
     def build_ffmpeg_command(self, input_file, output_file):
         cmd = [self.ffmpeg_path, "-i", input_file]
-        video_formats = ["mp4", "mkv", "avi", "mov", "webm", "wmv", "flv", "mpeg", "ts", "vob", "gif"]
-        audio_formats = ["mp3", "wav", "flac", "m4a", "aac", "ogg", "opus", "wma", "ac3"]
+        video_formats = [
+            "mp4",
+            "mkv",
+            "avi",
+            "mov",
+            "webm",
+            "wmv",
+            "flv",
+            "mpeg",
+            "ts",
+            "vob",
+            "gif",
+        ]
+        audio_formats = [
+            "mp3",
+            "wav",
+            "flac",
+            "m4a",
+            "aac",
+            "ogg",
+            "opus",
+            "wma",
+            "ac3",
+        ]
 
         if self.output_format in video_formats:
             # 视频编码
@@ -389,7 +506,7 @@ class FFmpegFluentApp(QMainWindow):
                 else:
                     cmd.extend(["-c:v", "libx264"])
             # 音频编码 (使用默认 AAC 128k)
-            cmd.extend(["-c:a", "aac", "-b:a", "128k"]) 
+            cmd.extend(["-c:a", "aac", "-b:a", "128k"])
             # 帧率和分辨率
             if self.frame_rate != "Same as source":
                 cmd.extend(["-r", self.frame_rate])
@@ -398,18 +515,18 @@ class FFmpegFluentApp(QMainWindow):
         elif self.output_format in audio_formats:
             # 音频编码
             if self.output_format == "mp3":
-                cmd.extend(["-c:a", "mp3", "-b:a", "192k"]) # mp3 默认 192k
+                cmd.extend(["-c:a", "mp3", "-b:a", "192k"])  # mp3 默认 192k
             elif self.output_format == "flac":
                 cmd.extend(["-c:a", "flac"])  # 无损格式，不需要码率
             elif self.output_format == "ogg":
-                cmd.extend(["-c:a", "libvorbis", "-b:a", "128k"]) # ogg 默认 128k
+                cmd.extend(["-c:a", "libvorbis", "-b:a", "128k"])  # ogg 默认 128k
             elif self.output_format == "opus":
-                cmd.extend(["-c:a", "opus", "-b:a", "128k"]) # opus 默认 128k
+                cmd.extend(["-c:a", "opus", "-b:a", "128k"])  # opus 默认 128k
             elif self.output_format == "wma":
-                cmd.extend(["-c:a", "wmav2", "-b:a", "128k"]) # wma 默认 128k
+                cmd.extend(["-c:a", "wmav2", "-b:a", "128k"])  # wma 默认 128k
             elif self.output_format == "ac3":
-                cmd.extend(["-c:a", "ac3", "-b:a", "128k"]) # ac3 默认 128k
-            else: # wav, m4a, aac (默认aac 128k)
+                cmd.extend(["-c:a", "ac3", "-b:a", "128k"])  # ac3 默认 128k
+            else:  # wav, m4a, aac (默认aac 128k)
                 cmd.extend(["-c:a", "aac", "-b:a", "128k"])
 
         cmd.extend(["-progress", "pipe:1", "-nostats", "-y", output_file])
@@ -419,10 +536,10 @@ class FFmpegFluentApp(QMainWindow):
         try:
             cmd = [self.ffmpeg_path, "-i", file_path, "-f", "null", "-"]
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
-            for line in result.stderr.split('\n'):
-                if 'Duration:' in line:
-                    duration_str = line.split('Duration:')[1].split(',')[0].strip()
-                    parts = duration_str.split(':')
+            for line in result.stderr.split("\n"):
+                if "Duration:" in line:
+                    duration_str = line.split("Duration:")[1].split(",")[0].strip()
+                    parts = duration_str.split(":")
                     if len(parts) == 3:
                         hours, minutes, seconds = map(float, parts)
                         return hours * 3600 + minutes * 60 + seconds
@@ -442,7 +559,11 @@ class FFmpegFluentApp(QMainWindow):
         self.stop_button.setEnabled(False)
         self.log_message("🎉 转换成功完成！")
 
-        if MessageBox("转换完成", f"文件转换完成！\n\n输出文件: {os.path.basename(output_file)}\n\n是否打开输出文件夹？", self).exec_():
+        if MessageBox(
+            "转换完成",
+            f"文件转换完成！\n\n输出文件: {os.path.basename(output_file)}\n\n是否打开输出文件夹？",
+            self,
+        ).exec_():
             self.open_output_folder()
 
     def conversion_failed(self, error_message):
@@ -462,10 +583,15 @@ class FFmpegFluentApp(QMainWindow):
 
     def open_output_folder(self):
         try:
-            if os.name == 'nt':
+            if os.name == "nt":
                 os.startfile(self.output_dir)
-            elif os.name == 'posix':
-                subprocess.run(['open' if sys.platform == 'darwin' else 'xdg-open', self.output_dir])
+            elif os.name == "posix":
+                subprocess.run(
+                    [
+                        "open" if sys.platform == "darwin" else "xdg-open",
+                        self.output_dir,
+                    ]
+                )
         except Exception as e:
             MessageBox("错误", f"无法打开文件夹: {str(e)}", self).exec_()
 
@@ -503,6 +629,7 @@ FFmpeg Assistant - 使用指南
 
     def log_message(self, message):
         import datetime
+
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
         self.log_buffer.append(f"[{timestamp}] {message}")
         if not self.log_timer.isActive():
@@ -513,6 +640,7 @@ FFmpeg Assistant - 使用指南
             self.log_text.append("\n".join(self.log_buffer))
             self.log_buffer.clear()
         self.log_timer.stop()
+
 
 if __name__ == "__main__":
     os.environ["QT_OPENGL"] = "desktop"
